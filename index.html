@@ -5,7 +5,7 @@
   <title>Coal Mining Environment Monitoring</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Fonts -->
+  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
   <style>
@@ -18,31 +18,33 @@
 
     header {
       background: #020617;
-      padding: 15px;
+      padding: 16px;
       text-align: center;
       font-size: 22px;
       font-weight: 600;
       color: #38bdf8;
+      letter-spacing: 0.5px;
     }
 
     .container {
-      padding: 20px;
-      max-width: 1100px;
+      max-width: 1200px;
       margin: auto;
+      padding: 20px;
     }
 
+    /* -------- CARDS -------- */
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 15px;
+      gap: 16px;
     }
 
     .card {
       background: #020617;
-      border-radius: 10px;
-      padding: 15px;
+      border-radius: 12px;
+      padding: 18px;
       text-align: center;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
     }
 
     .card h3 {
@@ -52,36 +54,55 @@
     }
 
     .card span {
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 600;
       color: #22c55e;
     }
 
-    .alert {
+    .alert-value {
       color: #ef4444 !important;
     }
 
+    /* -------- STATUS -------- */
     .status {
+      margin: 25px 0;
+      padding: 15px;
       text-align: center;
-      margin: 20px 0;
       font-size: 20px;
+      font-weight: 600;
+      border-radius: 10px;
+      background: #020617;
+    }
+
+    .safe {
+      color: #22c55e;
+    }
+
+    .alert {
+      color: #ef4444;
+    }
+
+    /* -------- TABLE -------- */
+    h2 {
+      margin-top: 30px;
+      color: #38bdf8;
       font-weight: 600;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 15px;
       background: #020617;
       border-radius: 10px;
       overflow: hidden;
     }
 
     th, td {
-      padding: 10px;
+      padding: 12px;
       text-align: center;
-      border-bottom: 1px solid #1e293b;
       font-size: 14px;
+      border-bottom: 1px solid #1e293b;
     }
 
     th {
@@ -94,10 +115,11 @@
     }
 
     footer {
-      text-align: center;
+      margin-top: 30px;
       padding: 10px;
-      color: #64748b;
+      text-align: center;
       font-size: 12px;
+      color: #64748b;
     }
   </style>
 </head>
@@ -112,27 +134,35 @@
 
   <!-- LIVE DATA -->
   <div class="cards">
-    <div class="card"><h3>Temperature</h3><span id="temp">--</span> °C</div>
-    <div class="card"><h3>Humidity</h3><span id="hum">--</span> %</div>
-    <div class="card"><h3>Gas MQ2</h3><span id="mq2">--</span> %</div>
-    <div class="card"><h3>Gas MQ135</h3><span id="mq135">--</span> %</div>
-    <div class="card"><h3>Dust</h3><span id="dust">--</span> %</div>
-    <div class="card"><h3>Sound</h3><span id="sound">--</span> %</div>
+    <div class="card"><h3>Temperature (°C)</h3><span id="temp">--</span></div>
+    <div class="card"><h3>Humidity (%)</h3><span id="hum">--</span></div>
+    <div class="card"><h3>Gas MQ2 (%)</h3><span id="mq2">--</span></div>
+    <div class="card"><h3>Gas MQ135 (%)</h3><span id="mq135">--</span></div>
+    <div class="card"><h3>Dust (%)</h3><span id="dust">--</span></div>
+    <div class="card"><h3>Sound (%)</h3><span id="sound">--</span></div>
   </div>
 
-  <div class="status" id="status">STATUS: --</div>
+  <!-- STATUS -->
+  <div id="statusBox" class="status">
+    STATUS: --
+  </div>
 
-  <!-- FAULT LOG TABLE -->
-  <h2 style="margin-top:30px;color:#38bdf8;">Fault Logs</h2>
+  <!-- FAULT LOGS -->
+  <h2>Fault Log History</h2>
   <table>
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Message</th>
-        <th>Timestamp</th>
+        <th>Fault ID</th>
+        <th>Reason</th>
+        <th>Date</th>
+        <th>Time</th>
       </tr>
     </thead>
-    <tbody id="faultTable"></tbody>
+    <tbody id="faultTable">
+      <tr>
+        <td colspan="4">Waiting for fault data...</td>
+      </tr>
+    </tbody>
   </table>
 
 </div>
@@ -141,7 +171,7 @@
   © ESP32 Firebase Monitoring | GitHub Pages
 </footer>
 
-<!-- FIREBASE -->
+<!-- ================= FIREBASE ================= -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
   import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
@@ -154,9 +184,10 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // LIVE DATA
+  /* ---------- LIVE DATA ---------- */
   const envRef = ref(db, "ENV_MONITOR");
-  onValue(envRef, snapshot => {
+
+  onValue(envRef, (snapshot) => {
     const d = snapshot.val();
     if (!d) return;
 
@@ -167,24 +198,42 @@
     dust.textContent = d.dust;
     sound.textContent = d.sound;
 
-    status.textContent = "STATUS: " + d.status;
-    status.style.color = d.status === "ALERT" ? "#ef4444" : "#22c55e";
+    const statusBox = document.getElementById("statusBox");
+    statusBox.textContent = "STATUS: " + d.status;
+
+    if (d.status === "ALERT") {
+      statusBox.classList.remove("safe");
+      statusBox.classList.add("alert");
+    } else {
+      statusBox.classList.remove("alert");
+      statusBox.classList.add("safe");
+    }
   });
 
-  // FAULT LOGS
+  /* ---------- FAULT LOGS ---------- */
   const faultRef = ref(db, "Fault_Logs");
-  onValue(faultRef, snapshot => {
-    faultTable.innerHTML = "";
+
+  onValue(faultRef, (snapshot) => {
+    const table = document.getElementById("faultTable");
+    table.innerHTML = "";
+
     snapshot.forEach(child => {
       const f = child.val();
+
       const row = `
         <tr>
-          <td>${f.Alert_ID || "-"}</td>
-          <td>${f.Alert_Message || "Threshold Exceeded"}</td>
-          <td>${f.Timestamp || "-"}</td>
-        </tr>`;
-      faultTable.innerHTML += row;
+          <td>${f.fault_id ?? "-"}</td>
+          <td>${f.reason ?? "Threshold Exceeded"}</td>
+          <td>${f.date ?? "-"}</td>
+          <td>${f.time ?? "-"}</td>
+        </tr>
+      `;
+      table.innerHTML += row;
     });
+
+    if (table.innerHTML === "") {
+      table.innerHTML = "<tr><td colspan='4'>No faults recorded</td></tr>";
+    }
   });
 </script>
 
